@@ -2,15 +2,21 @@
 
 /* Colour + spacing variables kept in one place so they are easy to tweak */
 :root {
-    --bg: #f4f6fb;
+    --bg: #fdf6f6;
     --surface: #ffffff;
-    --text: #1b2333;
-    --muted: #5c6678;
-    --border: #e3e7f0;
-    --brand: #2f6fed;
-    --brand-dark: #1f57c8;
+    --text: #2b1416;
+    --muted: #7a5a5c;
+    --border: #f0dcdd;
+    --brand: #7a1f2b;
+    --brand-dark: #5c1620;
+    --accent: #e0546b;
+    --accent-soft: #fbe4e9;
     --radius: 12px;
-    --shadow: 0 10px 30px rgba(27, 35, 51, 0.08);
+    /* Layered shadows read as depth rather than a single flat blur */
+    --shadow: 0 1px 2px rgba(122, 31, 43, 0.06), 0 10px 30px rgba(122, 31, 43, 0.1);
+    --shadow-raised: 0 2px 4px rgba(122, 31, 43, 0.08), 0 22px 44px rgba(122, 31, 43, 0.18);
+    --transition: 180ms ease;
+    --transition-3d: 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 * {
@@ -27,6 +33,55 @@ body {
     overflow-wrap: break-word;
 }
 
+/* Smooth out interactive elements site-wide */
+a,
+button,
+select,
+input {
+    transition: background-color var(--transition), border-color var(--transition),
+        color var(--transition), box-shadow var(--transition), transform var(--transition);
+}
+
+/* Cards get a slower, springier transition so the 3D tilt feels tactile */
+.job-card,
+.search-card,
+.job-panel {
+    transform-style: preserve-3d;
+    will-change: transform;
+    transition: transform var(--transition-3d), box-shadow var(--transition-3d),
+        border-color var(--transition);
+}
+
+/* Perspective belongs on the *parent* of a tilting element so the tilt
+   reads as depth rather than a flat skew */
+.hero,
+.job-list,
+.job-detail {
+    perspective: 1000px;
+}
+
+/* Entrance animation used across hero text, cards, and the job panel —
+   combines a rise, fade, and a slight 3D unfold for depth */
+@keyframes rise-in {
+    from {
+        opacity: 0;
+        transform: translateY(18px) translateZ(-40px) rotateX(6deg);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) translateZ(0) rotateX(0deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 /* Centres content and keeps a comfortable reading width */
 .container {
     width: 100%;
@@ -39,7 +94,11 @@ body {
 .site-header {
     background: var(--surface);
     border-bottom: 1px solid var(--border);
-    padding: 18px 0;
+    padding: 16px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(122, 31, 43, 0.06);
 }
 
 .header-inner {
@@ -129,6 +188,7 @@ input:focus-visible {
     margin: 0 0 16px;
     font-size: 2.1rem;
     letter-spacing: -0.6px;
+    animation: rise-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .description {
@@ -136,6 +196,7 @@ input:focus-visible {
     max-width: 560px;
     color: var(--muted);
     font-size: 1.05rem;
+    animation: rise-in 560ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both;
 }
 
 /* ===== Search card ===== */
@@ -146,6 +207,12 @@ input:focus-visible {
     box-shadow: var(--shadow);
     padding: 24px;
     text-align: left;
+    animation: rise-in 560ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
+}
+
+.search-card:hover {
+    box-shadow: var(--shadow-raised);
+    transform: translateY(-3px) translateZ(14px);
 }
 
 .form-row {
@@ -225,8 +292,8 @@ input:focus-visible {
 }
 
 @keyframes mic-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(47, 111, 237, 0.35); }
-    50%      { box-shadow: 0 0 0 6px rgba(47, 111, 237, 0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(122, 31, 43, 0.35); }
+    50%      { box-shadow: 0 0 0 6px rgba(122, 31, 43, 0); }
 }
 
 /* ===== Actions row: search button + voice status ===== */
@@ -252,6 +319,14 @@ input:focus-visible {
 
 .btn-search:hover {
     background: var(--brand-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(122, 31, 43, 0.28);
+}
+
+.btn-search:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 4px 10px rgba(122, 31, 43, 0.22);
+    transition-duration: 80ms;
 }
 
 .voice-status {
@@ -330,12 +405,35 @@ input:focus-visible {
     gap: 14px;
 }
 
+/* Staggered entrance so cards settle into place one after another */
+.job-list .job-card {
+    animation: rise-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.job-list .job-card:nth-child(1) { animation-delay: 40ms; }
+.job-list .job-card:nth-child(2) { animation-delay: 90ms; }
+.job-list .job-card:nth-child(3) { animation-delay: 140ms; }
+.job-list .job-card:nth-child(4) { animation-delay: 190ms; }
+.job-list .job-card:nth-child(5) { animation-delay: 240ms; }
+.job-list .job-card:nth-child(n+6) { animation-delay: 280ms; }
+
 .job-card {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     padding: 20px;
+}
+
+.job-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-raised);
+    transform: translateY(-4px) translateZ(20px) rotateX(2deg);
+}
+
+.job-card:active {
+    transform: translateY(-1px) translateZ(6px);
+    transition-duration: 80ms;
 }
 
 .job-title {
@@ -369,7 +467,7 @@ input:focus-visible {
     font-size: 0.78rem;
     padding: 3px 10px;
     border-radius: 999px;
-    background: #eef3fe;
+    background: var(--accent-soft);
     color: var(--brand-dark);
 }
 
@@ -399,6 +497,13 @@ input:focus-visible {
 
 .btn-view:hover {
     background: var(--brand-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(122, 31, 43, 0.3);
+}
+
+.btn-view:active {
+    transform: translateY(0) scale(0.97);
+    transition-duration: 80ms;
 }
 
 /* ===== Job details page ===== */
@@ -412,6 +517,7 @@ input:focus-visible {
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     padding: 28px;
+    animation: rise-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .job-detail-title {
@@ -515,8 +621,8 @@ input:focus-visible {
 }
 
 .message-error {
-    border-color: #f0c6c6;
-    background: #fdf3f3;
+    border-color: #e8b4bc;
+    background: var(--accent-soft);
 }
 
 /* ===== Footer ===== */
