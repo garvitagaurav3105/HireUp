@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HireUp — {{ job.title if job else t('tab_results') }}</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    {% include "_header.html" %}
+
+    <main class="container job-detail">
+        {% if profession and location %}
+            <a href="{{ url_for('search', profession=profession, location=location, page=page or 1) }}"
+               class="back-link">&larr; {{ t('detail_back') }}</a>
+        {% else %}
+            <a href="{{ url_for('index') }}" class="back-link">&larr; {{ t('detail_back_home') }}</a>
+        {% endif %}
+
+        {% if error %}
+            <div class="message message-error">
+                <p>{{ error }}</p>
+                <a href="{{ url_for('index') }}" class="btn-search">{{ t('results_back') }}</a>
+            </div>
+
+        {% elif job %}
+            <article class="job-panel">
+                <h1 class="job-detail-title">{{ job.title }}</h1>
+
+                {% if job.company or job.location %}
+                    <p class="job-detail-meta">
+                        {{ job.company or t('company_unlisted') }}
+                        {%- if job.location %} &middot; {{ job.location }}{% endif %}
+                    </p>
+                {% endif %}
+
+                <dl class="job-facts">
+                    {% if job.category %}
+                        <div><dt>{{ t('detail_category') }}</dt><dd>{{ job.category }}</dd></div>
+                    {% endif %}
+                    {% if job.contract_type %}
+                        <div><dt>{{ t('detail_contract_type') }}</dt><dd>{{ job.contract_type }}</dd></div>
+                    {% endif %}
+                    {% if job.contract_time %}
+                        <div><dt>{{ t('detail_contract_time') }}</dt><dd>{{ job.contract_time }}</dd></div>
+                    {% endif %}
+                    {% if job.salary %}
+                        <div><dt>{{ t('detail_salary') }}</dt><dd>{{ job.salary }}</dd></div>
+                    {% endif %}
+                </dl>
+
+                {% if job.description %}
+                    <h2 class="job-section-heading">{{ t('detail_description') }}</h2>
+                    <p class="job-detail-desc">{{ job.description }}</p>
+                {% endif %}
+
+                {% if job.url %}
+                    <a href="{{ job.url }}" target="_blank" rel="noopener noreferrer"
+                       class="btn-view">{{ t('detail_view_original') }}</a>
+                {% endif %}
+            </article>
+
+        {% else %}
+            <div class="message">
+                <p>{{ t('detail_unavailable') }}</p>
+                <a href="{{ url_for('index') }}" class="btn-search">{{ t('results_back') }}</a>
+            </div>
+        {% endif %}
+    </main>
+
+    {% include "_footer.html" %}
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

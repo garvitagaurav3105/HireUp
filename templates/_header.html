@@ -1,0 +1,16 @@
+<header class="site-header">
+    <div class="container header-inner">
+        <a href="{{ url_for('index') }}" class="brand">Hire<span>Up</span></a>
+
+        <form class="lang-form" action="{{ url_for('set_language') }}" method="get">
+            <label class="sr-only" for="lang-select">{{ t('nav_language') }}</label>
+            <select id="lang-select" name="lang" onchange="this.form.submit()">
+                {% for code, name in languages.items() %}
+                    <option value="{{ code }}"{{ ' selected' if code == current_lang }}>{{ name }}</option>
+                {% endfor %}
+            </select>
+            <input type="hidden" name="next" value="{{ request.full_path }}">
+            <button type="submit" class="lang-go">{{ t('lang_apply') }}</button>
+        </form>
+    </div>
+</header>

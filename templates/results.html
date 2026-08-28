@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HireUp — {{ t('tab_results') }}</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    {% include "_header.html" %}
+
+    <main class="container results">
+        <a href="{{ url_for('index') }}" class="back-link">&larr; {{ t('results_back') }}</a>
+
+        <h1 class="results-title">
+            {{ profession or t('tab_results') }}{% if profession and location %} &middot; {{ location }}{% endif %}
+        </h1>
+
+        {% if error %}
+            <div class="message message-error">
+                <p>{{ error }}</p>
+                <a href="{{ url_for('index') }}" class="btn-search">{{ t('error_retry') }}</a>
+            </div>
+
+        {% elif jobs %}
+            <div class="results-bar">
+                <p class="results-count">
+                    {{ count }} {{ t('results_found') }}
+                </p>
+                <!-- Shown by script.js only when the browser supports speech synthesis -->
+                <button type="button" class="btn-read" data-stop-label="{{ t('read_stop') }}" hidden>{{ t('read_aloud') }}</button>
+            </div>
+
+            <ul class="job-list">
+                {% for job in jobs %}
+                    <li class="job-card">
+                        <h2 class="job-title">
+                            {% if job.id %}
+                                <a href="{{ url_for('job_details', job_id=job.id, profession=profession, location=location, page=page) }}">{{ job.title }}</a>
+                            {% else %}
+                                {{ job.title }}
+                            {% endif %}
+                        </h2>
+
+                        {% if job.company or job.location %}
+                            <p class="job-meta">
+                                {{ job.company or t('company_unlisted') }}
+                                {%- if job.location %} &middot; {{ job.location }}{% endif %}
+                            </p>
+                        {% endif %}
+
+                        {% set tags = [] %}
+                        {% if job.category %}{% set _ = tags.append(job.category) %}{% endif %}
+                        {% if job.contract_type %}{% set _ = tags.append(job.contract_type) %}{% endif %}
+                        {% if job.contract_time %}{% set _ = tags.append(job.contract_time) %}{% endif %}
+                        {% if tags %}
+                            <p class="job-tags">
+                                {% for tag in tags %}<span class="tag">{{ tag }}</span>{% endfor %}
+                            </p>
+                        {% endif %}
+
+                        {% if job.salary %}
+                            <p class="job-salary">{{ job.salary }}</p>
+                        {% endif %}
+
+                        {% if job.description %}
+                            <p class="job-desc">{{ job.description | truncate(240, true, "…") }}</p>
+                        {% endif %}
+
+                        {% if job.url %}
+                            <a href="{{ job.url }}" target="_blank" rel="noopener noreferrer"
+                               class="btn-view">{{ t('job_view') }}</a>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+
+            {% if total_pages > 1 %}
+                <nav class="pagination">
+                    {% if page > 1 %}
+                        <a class="page-link" href="{{ url_for('search', profession=profession, location=location, page=page - 1) }}">&larr; {{ t('page_prev') }}</a>
+                    {% else %}
+                        <span class="page-link disabled">&larr; {{ t('page_prev') }}</span>
+                    {% endif %}
+
+                    <span class="page-status">{{ t('page_word') }} {{ page }} / {{ total_pages }}</span>
+
+                    {% if page < total_pages %}
+                        <a class="page-link" href="{{ url_for('search', profession=profession, location=location, page=page + 1) }}">{{ t('page_next') }} &rarr;</a>
+                    {% else %}
+                        <span class="page-link disabled">{{ t('page_next') }} &rarr;</span>
+                    {% endif %}
+                </nav>
+            {% endif %}
+
+        {% else %}
+            <div class="message">
+                <p>{{ t('empty_body') }}</p>
+                <a href="{{ url_for('index') }}" class="btn-search">{{ t('detail_back_home') }}</a>
+            </div>
+        {% endif %}
+    </main>
+
+    {% include "_footer.html" %}
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
