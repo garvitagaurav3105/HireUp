@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>HireUp — {{ t('home_tagline') }}</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -12,6 +15,12 @@
 
     <main class="container">
         <section class="hero">
+            <div class="hero-3d" aria-hidden="true">
+                <span class="float-card fc-1"></span>
+                <span class="float-card fc-2"></span>
+                <span class="float-card fc-3"></span>
+            </div>
+
             <h1 class="tagline">{{ t('home_tagline') }}</h1>
             <p class="description">{{ t('home_intro') }}</p>
 

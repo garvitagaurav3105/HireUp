@@ -2,29 +2,154 @@
 
 /* Colour + spacing variables kept in one place so they are easy to tweak */
 :root {
-    --bg: #f4f6fb;
+    --bg: #fdf6f6;
     --surface: #ffffff;
-    --text: #1b2333;
-    --muted: #5c6678;
-    --border: #e3e7f0;
-    --brand: #2f6fed;
-    --brand-dark: #1f57c8;
+    --text: #2b1416;
+    --muted: #7a5a5c;
+    --border: #f0dcdd;
+    --brand: #7a1f2b;
+    --brand-dark: #5c1620;
+    --accent: #e0546b;
+    --accent-soft: #fbe4e9;
     --radius: 12px;
-    --shadow: 0 10px 30px rgba(27, 35, 51, 0.08);
+    /* Layered shadows read as depth rather than a single flat blur */
+    --shadow: 0 1px 2px rgba(122, 31, 43, 0.06), 0 10px 30px rgba(122, 31, 43, 0.1);
+    --shadow-raised: 0 2px 4px rgba(122, 31, 43, 0.08), 0 22px 44px rgba(122, 31, 43, 0.18);
+    --transition: 180ms ease;
+    --transition-3d: 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-head: "Sora", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 * {
     box-sizing: border-box;
 }
 
+html {
+    background: var(--bg);
+}
+
 body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--font-body);
     background: var(--bg);
     color: var(--text);
     line-height: 1.6;
     /* stop long unbroken words/URLs from forcing horizontal scroll */
     overflow-wrap: break-word;
+    min-height: 100vh;
+    position: relative;
+}
+
+.tagline,
+.brand-word,
+.results-title,
+.job-detail-title,
+.job-section-heading,
+.btn-search,
+.btn-view {
+    font-family: var(--font-head);
+}
+
+/* ===== Ambient background: drifting gradient blobs behind everything ===== */
+.bg-decor {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.4;
+    animation: drift ease-in-out infinite;
+}
+
+.blob-1 {
+    width: 420px;
+    height: 420px;
+    top: -140px;
+    left: -120px;
+    background: radial-gradient(circle, var(--accent), transparent 70%);
+    animation-duration: 22s;
+}
+
+.blob-2 {
+    width: 380px;
+    height: 380px;
+    bottom: -160px;
+    right: -100px;
+    background: radial-gradient(circle, var(--brand), transparent 70%);
+    animation-duration: 26s;
+    animation-delay: -6s;
+}
+
+.blob-3 {
+    width: 300px;
+    height: 300px;
+    top: 38%;
+    right: 12%;
+    background: radial-gradient(circle, var(--accent-soft), transparent 72%);
+    animation-duration: 30s;
+    animation-delay: -12s;
+    opacity: 0.55;
+}
+
+@keyframes drift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33%      { transform: translate(40px, -30px) scale(1.08); }
+    66%      { transform: translate(-30px, 25px) scale(0.95); }
+}
+
+/* Smooth out interactive elements site-wide */
+a,
+button,
+select,
+input {
+    transition: background-color var(--transition), border-color var(--transition),
+        color var(--transition), box-shadow var(--transition), transform var(--transition);
+}
+
+/* Cards get a slower, springier transition so the 3D tilt feels tactile */
+.job-card,
+.search-card,
+.job-panel {
+    transform-style: preserve-3d;
+    will-change: transform;
+    transition: transform var(--transition-3d), box-shadow var(--transition-3d),
+        border-color var(--transition);
+}
+
+/* Perspective belongs on the *parent* of a tilting element so the tilt
+   reads as depth rather than a flat skew */
+.hero,
+.job-list,
+.job-detail {
+    perspective: 1000px;
+}
+
+/* Entrance animation used across hero text, cards, and the job panel —
+   combines a rise, fade, and a slight 3D unfold for depth */
+@keyframes rise-in {
+    from {
+        opacity: 0;
+        transform: translateY(18px) translateZ(-40px) rotateX(6deg);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) translateZ(0) rotateX(0deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
 }
 
 /* Centres content and keeps a comfortable reading width */
@@ -37,9 +162,15 @@ body {
 
 /* ===== Header ===== */
 .site-header {
-    background: var(--surface);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
     border-bottom: 1px solid var(--border);
-    padding: 18px 0;
+    padding: 14px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(122, 31, 43, 0.06);
 }
 
 .header-inner {
@@ -51,11 +182,32 @@ body {
 }
 
 .brand {
-    font-size: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.4rem;
     font-weight: 700;
     letter-spacing: -0.5px;
     text-decoration: none;
     color: var(--text);
+}
+
+/* 3D logo badge — tilts toward the cursor on hover */
+.logo-mark {
+    display: inline-flex;
+    perspective: 300px;
+}
+
+.logo-mark svg {
+    display: block;
+    border-radius: 13px;
+    filter: drop-shadow(0 6px 14px rgba(122, 31, 43, 0.35));
+    transition: transform var(--transition-3d);
+    transform-style: preserve-3d;
+}
+
+.brand:hover .logo-mark svg {
+    transform: rotateY(18deg) rotateX(-8deg) scale(1.06);
 }
 
 /* Language selector */
@@ -121,31 +273,116 @@ input:focus-visible {
 
 /* ===== Hero ===== */
 .hero {
+    position: relative;
     padding: 60px 0 70px;
     text-align: center;
+    overflow: hidden;
+}
+
+/* Decorative floating 3D shapes drifting behind the hero copy */
+.hero-3d {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.float-card {
+    position: absolute;
+    display: block;
+    background: linear-gradient(135deg, var(--accent), var(--brand));
+    box-shadow: var(--shadow-raised);
+    opacity: 0.16;
+    animation: float-rotate ease-in-out infinite;
+}
+
+.fc-1 {
+    width: 130px;
+    height: 84px;
+    top: 4%;
+    left: 6%;
+    border-radius: 18px;
+    animation-duration: 15s;
+}
+
+.fc-2 {
+    width: 96px;
+    height: 96px;
+    top: 58%;
+    right: 9%;
+    border-radius: 50%;
+    animation-duration: 19s;
+    animation-delay: -4s;
+}
+
+.fc-3 {
+    width: 110px;
+    height: 70px;
+    bottom: 6%;
+    left: 16%;
+    border-radius: 16px;
+    animation-duration: 17s;
+    animation-delay: -9s;
+}
+
+@keyframes float-rotate {
+    0%, 100% { transform: translateY(0) rotate(-6deg); }
+    50%      { transform: translateY(-24px) rotate(6deg); }
+}
+
+@media (max-width: 700px) {
+    .hero-3d {
+        display: none;
+    }
 }
 
 .tagline {
+    position: relative;
+    z-index: 1;
     margin: 0 0 16px;
-    font-size: 2.1rem;
+    font-size: 2.3rem;
+    font-weight: 700;
     letter-spacing: -0.6px;
+    background: linear-gradient(120deg, var(--brand) 20%, var(--accent) 55%, var(--brand-dark) 90%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: rise-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .description {
+    position: relative;
+    z-index: 1;
     margin: 0 auto 36px;
     max-width: 560px;
     color: var(--muted);
     font-size: 1.05rem;
+    animation: rise-in 560ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both;
 }
 
 /* ===== Search card ===== */
 .search-card {
-    background: var(--surface);
+    position: relative;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     padding: 24px;
     text-align: left;
+    animation: rise-in 560ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
+}
+
+.search-card:hover {
+    box-shadow: var(--shadow-raised);
+    transform: translateY(-3px) translateZ(14px);
+}
+
+.search-card:focus-within {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-raised), 0 0 0 4px var(--accent-soft);
 }
 
 .form-row {
@@ -225,8 +462,8 @@ input:focus-visible {
 }
 
 @keyframes mic-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(47, 111, 237, 0.35); }
-    50%      { box-shadow: 0 0 0 6px rgba(47, 111, 237, 0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(122, 31, 43, 0.35); }
+    50%      { box-shadow: 0 0 0 6px rgba(122, 31, 43, 0); }
 }
 
 /* ===== Actions row: search button + voice status ===== */
@@ -240,18 +477,46 @@ input:focus-visible {
 }
 
 .btn-search {
+    position: relative;
+    overflow: hidden;
     padding: 12px 32px;
     font-size: 1rem;
     font-weight: 600;
     color: #ffffff;
-    background: var(--brand);
+    background: linear-gradient(135deg, var(--accent), var(--brand) 70%);
     border: none;
     border-radius: 8px;
     cursor: pointer;
+    box-shadow: 0 6px 16px rgba(122, 31, 43, 0.22);
+}
+
+/* Diagonal shine sweep on hover */
+.btn-search::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -60%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    transform: skewX(-20deg);
+    transition: left 550ms ease;
+}
+
+.btn-search:hover::after {
+    left: 130%;
 }
 
 .btn-search:hover {
-    background: var(--brand-dark);
+    background: linear-gradient(135deg, var(--accent), var(--brand-dark) 70%);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(122, 31, 43, 0.28);
+}
+
+.btn-search:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 4px 10px rgba(122, 31, 43, 0.22);
+    transition-duration: 80ms;
 }
 
 .voice-status {
@@ -330,12 +595,73 @@ input:focus-visible {
     gap: 14px;
 }
 
+/* Staggered entrance so cards settle into place one after another */
+.job-list .job-card {
+    animation: rise-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.job-list .job-card:nth-child(1) { animation-delay: 40ms; }
+.job-list .job-card:nth-child(2) { animation-delay: 90ms; }
+.job-list .job-card:nth-child(3) { animation-delay: 140ms; }
+.job-list .job-card:nth-child(4) { animation-delay: 190ms; }
+.job-list .job-card:nth-child(5) { animation-delay: 240ms; }
+.job-list .job-card:nth-child(n+6) { animation-delay: 280ms; }
+
 .job-card {
+    position: relative;
+    overflow: hidden;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
-    padding: 20px;
+    padding: 20px 20px 20px 25px;
+}
+
+/* Gradient accent bar down the left edge, clipped to the card's radius */
+.job-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 5px;
+    background: linear-gradient(180deg, var(--accent), var(--brand));
+}
+
+.job-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-raised);
+    transform: translateY(-4px) translateZ(20px) rotateX(2deg);
+}
+
+.job-card:active {
+    transform: translateY(-1px) translateZ(6px);
+    transition-duration: 80ms;
+}
+
+.job-card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.job-icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    margin-top: 2px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--brand));
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(122, 31, 43, 0.28);
+}
+
+.job-icon-lg {
+    width: 46px;
+    height: 46px;
+    margin-top: 0;
+    border-radius: 13px;
 }
 
 .job-title {
@@ -367,10 +693,18 @@ input:focus-visible {
 
 .tag {
     font-size: 0.78rem;
-    padding: 3px 10px;
+    font-weight: 600;
+    padding: 3px 11px;
     border-radius: 999px;
-    background: #eef3fe;
+    background: var(--accent-soft);
     color: var(--brand-dark);
+    transition: background var(--transition), color var(--transition), transform var(--transition);
+}
+
+.tag:hover {
+    background: linear-gradient(135deg, var(--accent), var(--brand));
+    color: #ffffff;
+    transform: translateY(-1px);
 }
 
 .job-salary {
@@ -387,18 +721,44 @@ input:focus-visible {
 }
 
 .btn-view {
+    position: relative;
+    overflow: hidden;
     display: inline-block;
     padding: 9px 18px;
     font-size: 0.9rem;
     font-weight: 600;
     color: #ffffff;
-    background: var(--brand);
+    background: linear-gradient(135deg, var(--accent), var(--brand) 70%);
     border-radius: 8px;
     text-decoration: none;
+    box-shadow: 0 4px 12px rgba(122, 31, 43, 0.2);
+}
+
+.btn-view::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -60%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    transform: skewX(-20deg);
+    transition: left 550ms ease;
+}
+
+.btn-view:hover::after {
+    left: 130%;
 }
 
 .btn-view:hover {
-    background: var(--brand-dark);
+    background: linear-gradient(135deg, var(--accent), var(--brand-dark) 70%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(122, 31, 43, 0.3);
+}
+
+.btn-view:active {
+    transform: translateY(0) scale(0.97);
+    transition-duration: 80ms;
 }
 
 /* ===== Job details page ===== */
@@ -407,15 +767,25 @@ input:focus-visible {
 }
 
 .job-panel {
-    background: var(--surface);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     padding: 28px;
+    animation: rise-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.job-detail-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 6px;
 }
 
 .job-detail-title {
-    margin: 0 0 6px;
+    margin: 0;
     font-size: 1.7rem;
     letter-spacing: -0.4px;
 }
@@ -515,16 +885,44 @@ input:focus-visible {
 }
 
 .message-error {
-    border-color: #f0c6c6;
-    background: #fdf3f3;
+    border-color: #e8b4bc;
+    background: var(--accent-soft);
 }
 
 /* ===== Footer ===== */
 .site-footer {
+    position: relative;
     border-top: 1px solid var(--border);
     background: var(--surface);
-    padding: 20px 0;
+    padding: 22px 0;
     margin-top: 40px;
+}
+
+.site-footer::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--brand), transparent);
+    opacity: 0.6;
+}
+
+.footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.footer-mark {
+    display: inline-flex;
+    opacity: 0.85;
+}
+
+.footer-mark svg {
+    border-radius: 6px;
 }
 
 .site-footer p {

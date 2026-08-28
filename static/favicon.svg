@@ -1,5 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#2f6fed"/>
-  <text x="50%" y="50%" dy=".08em" text-anchor="middle" dominant-baseline="middle"
-        font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="#ffffff">H</text>
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e0546b"/>
+      <stop offset="100%" stop-color="#5c1620"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#g)"/>
+  <path d="M20 40V27q0-4 4-4h16q4 0 4 4v13" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="17" y="32" width="30" height="16" rx="4" fill="#fff"/>
+  <rect x="27" y="37.5" width="10" height="5" rx="2" fill="url(#g)"/>
 </svg>

@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>HireUp — {{ job.title if job else t('tab_results') }}</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -26,7 +29,16 @@
 
         {% elif job %}
             <article class="job-panel">
-                <h1 class="job-detail-title">{{ job.title }}</h1>
+                <div class="job-detail-top">
+                    <span class="job-icon job-icon-lg" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="26" height="26">
+                            <path d="M9 7V6a3 3 0 013-3v0a3 3 0 013 3v1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            <rect x="4" y="7" width="16" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                            <path d="M4 12.5h16" stroke="currentColor" stroke-width="1.8"/>
+                        </svg>
+                    </span>
+                    <h1 class="job-detail-title">{{ job.title }}</h1>
+                </div>
 
                 {% if job.company or job.location %}
                     <p class="job-detail-meta">

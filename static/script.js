@@ -13,6 +13,7 @@
     enhanceSearchButton();
     enableVoiceInput();
     enableReadAloud();
+    enableTilt();
 
     // ----- 1. "Searching…" button state ----------------------------------
 
@@ -246,5 +247,52 @@
             synth.cancel();
         });
         window.addEventListener("pageshow", resetButton);
+    }
+
+    // ----- 4. 3D pointer tilt on cards -----------------------------------
+    //
+    // Mouse-follows-tilt on the search card, job cards, and the job detail
+    // panel. Skipped entirely on touch devices (no hover) and when the user
+    // has asked for reduced motion — CSS still provides a flat hover state
+    // in both cases, so nothing is lost.
+
+    function enableTilt() {
+        var reduceMotion = window.matchMedia &&
+            window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        var canHover = window.matchMedia &&
+            window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+        if (reduceMotion || !canHover) {
+            return;
+        }
+
+        var elements = document.querySelectorAll(".job-card, .search-card, .job-panel");
+        if (!elements.length) {
+            return;
+        }
+
+        var MAX_TILT = 6; // degrees — kept subtle so text stays readable
+
+        elements.forEach(function (el) {
+            el.addEventListener("pointermove", function (event) {
+                if (event.pointerType !== "mouse") {
+                    return;
+                }
+                var rect = el.getBoundingClientRect();
+                var px = (event.clientX - rect.left) / rect.width;  // 0..1
+                var py = (event.clientY - rect.top) / rect.height;  // 0..1
+                var rotateY = (px - 0.5) * (MAX_TILT * 2);
+                var rotateX = (0.5 - py) * (MAX_TILT * 2);
+
+                el.style.transform =
+                    "translateY(-4px) translateZ(20px) " +
+                    "rotateX(" + rotateX.toFixed(2) + "deg) " +
+                    "rotateY(" + rotateY.toFixed(2) + "deg)";
+            });
+
+            el.addEventListener("pointerleave", function () {
+                el.style.transform = ""; // hand control back to CSS
+            });
+        });
     }
 })();
