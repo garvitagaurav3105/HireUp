@@ -152,6 +152,55 @@ input {
     }
 }
 
+/* Smooth out interactive elements site-wide */
+a,
+button,
+select,
+input {
+    transition: background-color var(--transition), border-color var(--transition),
+        color var(--transition), box-shadow var(--transition), transform var(--transition);
+}
+
+/* Cards get a slower, springier transition so the 3D tilt feels tactile */
+.job-card,
+.search-card,
+.job-panel {
+    transform-style: preserve-3d;
+    will-change: transform;
+    transition: transform var(--transition-3d), box-shadow var(--transition-3d),
+        border-color var(--transition);
+}
+
+/* Perspective belongs on the *parent* of a tilting element so the tilt
+   reads as depth rather than a flat skew */
+.hero,
+.job-list,
+.job-detail {
+    perspective: 1000px;
+}
+
+/* Entrance animation used across hero text, cards, and the job panel —
+   combines a rise, fade, and a slight 3D unfold for depth */
+@keyframes rise-in {
+    from {
+        opacity: 0;
+        transform: translateY(18px) translateZ(-40px) rotateX(6deg);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) translateZ(0) rotateX(0deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 /* Centres content and keeps a comfortable reading width */
 .container {
     width: 100%;
@@ -662,6 +711,17 @@ input:focus-visible {
     height: 46px;
     margin-top: 0;
     border-radius: 13px;
+}
+
+.job-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-raised);
+    transform: translateY(-4px) translateZ(20px) rotateX(2deg);
+}
+
+.job-card:active {
+    transform: translateY(-1px) translateZ(6px);
+    transition-duration: 80ms;
 }
 
 .job-title {
