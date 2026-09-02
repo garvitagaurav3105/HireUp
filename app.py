@@ -1,7 +1,10 @@
+import json
 import os
+from datetime import datetime, timezone
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
+import sentry_sdk
 from dotenv import load_dotenv
 from flask import Flask, make_response, redirect, render_template, request, url_for
 
@@ -18,6 +21,63 @@ REQUEST_TIMEOUT = 10  # seconds
 
 RESULTS_PER_PAGE = 10
 MAX_PAGES = 20  # keep pagination simple and bounded
+
+FEEDBACK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "feedback_data.json")
+MAX_FEEDBACK_SHOWN = 6  # most recent reviews shown per company
+
+# Each profession maps to an Adzuna "category" tag (Adzuna's own job
+# taxonomy) and/or a curated set of keywords. Filtering by category keeps
+# one profession's results from bleeding into another far more reliably
+# than free-text keyword search alone — two professions that share a
+# category (e.g. Data Science sits inside IT) also get a keyword filter
+# scoped to just the job title, to keep them apart from each other too.
+PROFESSIONS = [
+    ("Software / IT", "it-jobs", None),
+    ("Engineering", "engineering-jobs", None),
+    ("Data Science", "it-jobs", "data scientist"),
+    ("Marketing", "pr-advertising-marketing-jobs", None),
+    ("Finance", "accounting-finance-jobs", None),
+    ("Human Resources", "hr-jobs", None),
+    ("Design", "creative-design-jobs", None),
+    ("Research", "scientific-qa-jobs", None),
+    ("Sales", "sales-jobs", None),
+    ("Operations", None, "operations manager"),
+    ("Customer Support", "customer-services-jobs", None),
+    ("Healthcare", "healthcare-nursing-jobs", None),
+    ("Education", "teaching-jobs", None),
+    ("Legal", "legal-jobs", None),
+    ("Manufacturing", "manufacturing-jobs", None),
+    ("Logistics & Supply Chain", "logistics-warehouse-jobs", None),
+    ("Hospitality", "hospitality-catering-jobs", None),
+    ("Retail", "retail-jobs", None),
+    ("Construction", "trade-construction-jobs", None),
+    ("Consulting", "consultancy-jobs", None),
+    ("Media & Journalism", None, "journalist"),
+    ("Government / Public Sector", "admin-jobs", None),
+    ("Policy", None, "policy analyst"),
+]
+
+PROFESSION_LABELS = [label for label, _category, _what in PROFESSIONS]
+PROFESSION_LOOKUP = {label: (category, what) for label, category, what in PROFESSIONS}
+
+# Kind-of-job filter shown on the search form. Adzuna has native boolean
+# flags for full-time/part-time; it has no "internship" flag at all, so
+# that one is approximated with a title-restricted keyword match instead.
+JOB_TYPES = ["full_time", "part_time", "internship"]
+
+# Bump this whenever static/style.css or static/script.js changes. It's
+# appended to those files' URLs as a cache-busting query string so a
+# browser that already cached the old file (very common with Render/CDN
+# hosting) picks up the new one on next load instead of silently keeping
+# stale JS/CSS around.
+ASSET_VERSION = "5"
+
+sentry_sdk.init(
+    dsn="https://63d29ce67291fe3cc18796f135d0b8b0@o4512005380636672.ingest.us.sentry.io/4512005387976704",
+    # Add data like request headers and IP for users,
+    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+    send_default_pii=True,
+)
 
 app = Flask(__name__)
 
@@ -38,7 +98,12 @@ def translate(key):
 
 @app.context_processor
 def inject_i18n():
-    return {"t": translate, "languages": LANGUAGES, "current_lang": get_language()}
+    return {
+        "t": translate,
+        "languages": LANGUAGES,
+        "current_lang": get_language(),
+        "asset_version": ASSET_VERSION,
+    }
 
 
 @app.route("/set-language")
@@ -130,7 +195,7 @@ def _build_job(job):
     }
 
 
-def search_adzuna_jobs(profession, location, page=1):
+def search_adzuna_jobs(profession, location, page=1, min_salary=None, job_type=None):
     """Call the Adzuna jobs API and return clean, display-ready results.
 
     Returns a dict: {"count", "jobs", "page", "total_pages"}.
@@ -145,10 +210,37 @@ def search_adzuna_jobs(profession, location, page=1):
     params = {
         "app_id": ADZUNA_APP_ID,
         "app_key": ADZUNA_APP_KEY,
-        "what": profession,
         "where": location,
         "results_per_page": RESULTS_PER_PAGE,
     }
+
+    category, what_terms = PROFESSION_LOOKUP.get(profession, (None, None))
+    if category:
+        params["category"] = category
+    if what_terms:
+        # An exact-phrase, title-only match keeps a profession like
+        # "Data Science" from matching every IT posting that merely
+        # mentions data somewhere in the body text.
+        params["what_phrase"] = what_terms
+        params["title_only"] = 1
+    elif not category:
+        # No curated mapping for this profession — fall back to searching
+        # its own label, but require the words to appear in the title.
+        params["what_and"] = profession
+        params["title_only"] = 1
+
+    if min_salary:
+        params["salary_min"] = min_salary
+
+    if job_type == "full_time":
+        params["full_time"] = 1
+    elif job_type == "part_time":
+        params["part_time"] = 1
+    elif job_type == "internship":
+        # No native Adzuna flag for this — approximate with a
+        # title-restricted keyword match instead.
+        params["what_or"] = "internship intern"
+        params["title_only"] = 1
 
     try:
         response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT)
@@ -176,15 +268,34 @@ def search_adzuna_jobs(profession, location, page=1):
     return {"count": count, "jobs": jobs, "page": page, "total_pages": total_pages}
 
 
+def _parse_min_salary(raw):
+    """Parse the salary filter into a non-negative int, or None if unusable."""
+    if raw is None or str(raw).strip() == "":
+        return None
+    try:
+        value = int(str(raw).replace(",", "").strip())
+    except ValueError:
+        return None
+    return value if value > 0 else None
+
+
+def _parse_job_type(raw):
+    """Return the job-type filter if it's one we recognize, else None."""
+    value = (raw or "").strip()
+    return value if value in JOB_TYPES else None
+
+
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", professions=PROFESSION_LABELS, job_types=JOB_TYPES)
 
 
 @app.route("/search")
 def search():
     profession = (request.args.get("profession") or "").strip()
     location = (request.args.get("location") or "").strip()
+    min_salary = _parse_min_salary(request.args.get("min_salary"))
+    job_type = _parse_job_type(request.args.get("job_type"))
 
     try:
         page = int(request.args.get("page", 1))
@@ -193,16 +304,20 @@ def search():
 
     if not profession:
         return render_template("results.html", error=translate("err_no_profession"),
-                               profession=profession, location=location), 400
+                               profession=profession, location=location,
+                               min_salary=min_salary, job_type=job_type), 400
     if not location:
         return render_template("results.html", error=translate("err_no_location"),
-                               profession=profession, location=location), 400
+                               profession=profession, location=location,
+                               min_salary=min_salary, job_type=job_type), 400
 
     try:
-        result = search_adzuna_jobs(profession, location, page=page)
+        result = search_adzuna_jobs(profession, location, page=page,
+                                    min_salary=min_salary, job_type=job_type)
     except AdzunaError as exc:
         return render_template("results.html", error=str(exc),
-                               profession=profession, location=location), 502
+                               profession=profession, location=location,
+                               min_salary=min_salary, job_type=job_type), 502
 
     return render_template(
         "results.html",
@@ -212,6 +327,8 @@ def search():
         total_pages=result["total_pages"],
         profession=profession,
         location=location,
+        min_salary=min_salary,
+        job_type=job_type,
     )
 
 
@@ -225,6 +342,8 @@ def job_details(job_id):
     """
     profession = (request.args.get("profession") or "").strip()
     location = (request.args.get("location") or "").strip()
+    min_salary = _parse_min_salary(request.args.get("min_salary"))
+    job_type = _parse_job_type(request.args.get("job_type"))
 
     try:
         page = int(request.args.get("page", 1))
@@ -238,10 +357,12 @@ def job_details(job_id):
         ), 400
 
     try:
-        result = search_adzuna_jobs(profession, location, page=page)
+        result = search_adzuna_jobs(profession, location, page=page,
+                                    min_salary=min_salary, job_type=job_type)
     except AdzunaError as exc:
         return render_template("job.html", error=str(exc),
-                               profession=profession, location=location, page=page), 502
+                               profession=profession, location=location, page=page,
+                               min_salary=min_salary, job_type=job_type), 502
 
     job = next((j for j in result["jobs"] if j["id"] and j["id"] == job_id), None)
 
@@ -250,10 +371,93 @@ def job_details(job_id):
             "job.html",
             error="Sorry, we couldn't find that opportunity. It may have expired.",
             profession=profession, location=location, page=page,
+            min_salary=min_salary, job_type=job_type,
         ), 404
 
     return render_template("job.html", job=job,
-                           profession=profession, location=location, page=page)
+                           profession=profession, location=location, page=page,
+                           min_salary=min_salary, job_type=job_type)
+
+
+# ----- Company feedback (simple JSON-file storage, no database needed) ----
+
+def _load_feedback():
+    try:
+        with open(FEEDBACK_FILE, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+            return data if isinstance(data, list) else []
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def _save_feedback(entries):
+    with open(FEEDBACK_FILE, "w", encoding="utf-8") as handle:
+        json.dump(entries, handle, ensure_ascii=False, indent=2)
+
+
+def _company_feedback(entries, company):
+    key = company.strip().lower()
+    return [e for e in entries if (e.get("company") or "").strip().lower() == key]
+
+
+@app.route("/feedback", methods=["GET", "POST"])
+def feedback():
+    """Star rating + free-text feedback about a company.
+
+    Reached either from a job's "Rate this company" link (company name
+    pre-filled and locked) or directly from the footer (company name is a
+    plain text field in that case).
+    """
+    company = (request.args.get("company") or "").strip()
+    locked = bool(company)
+    submitted = False
+    error = None
+    posted_rating = 0
+    posted_text = ""
+
+    if request.method == "POST":
+        company = (request.form.get("company") or "").strip()
+        locked = bool((request.args.get("company") or "").strip())
+        try:
+            posted_rating = int(request.form.get("rating", "0"))
+        except ValueError:
+            posted_rating = 0
+        posted_text = (request.form.get("text") or "").strip()
+
+        if not company:
+            error = translate("feedback_err_company")
+        elif posted_rating < 1 or posted_rating > 5:
+            error = translate("feedback_err_rating")
+        else:
+            entries = _load_feedback()
+            entries.append({
+                "company": company,
+                "rating": posted_rating,
+                "text": posted_text,
+                "submitted_at": datetime.now(timezone.utc).isoformat(),
+            })
+            _save_feedback(entries)
+            submitted = True
+            posted_rating = 0
+            posted_text = ""
+
+    all_entries = _load_feedback()
+    matching = _company_feedback(all_entries, company) if company else []
+    average = round(sum(e["rating"] for e in matching) / len(matching), 1) if matching else None
+    recent = list(reversed(matching))[:MAX_FEEDBACK_SHOWN]
+
+    return render_template(
+        "feedback.html",
+        company=company,
+        locked=locked,
+        submitted=submitted,
+        error=error,
+        recent=recent,
+        review_count=len(matching),
+        average=average,
+        posted_rating=posted_rating,
+        posted_text=posted_text,
+    )
 
 
 if __name__ == "__main__":

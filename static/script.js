@@ -4,8 +4,9 @@
 //  1. "Searching…" feedback on the homepage search button.
 //  2. Voice input for the Profession and Location fields (Web Speech API).
 //  3. "Read results aloud" on the results page (SpeechSynthesis API).
+//  4. "Welcome to HireUp" spoken greeting when the homepage opens.
 //
-// Features 2 and 3 fall back gracefully when the browser lacks the API.
+// Features 2, 3, and 4 fall back gracefully when the browser lacks the API.
 
 (function () {
     "use strict";
@@ -14,6 +15,7 @@
     enableVoiceInput();
     enableReadAloud();
     enableTilt();
+    announceWelcome();
 
     // ----- 1. "Searching…" button state ----------------------------------
 
@@ -293,6 +295,77 @@
             el.addEventListener("pointerleave", function () {
                 el.style.transform = ""; // hand control back to CSS
             });
+        });
+    }
+
+    // ----- 5. "Welcome to HireUp" spoken greeting -------------------------
+    //
+    // Only present on the homepage (script reads a data attribute that
+    // only index.html sets), and only the first time in each new browsing
+    // session/cycle the visitor reaches the site — a flag in sessionStorage
+    // remembers that only for as long as this browser tab/session stays
+    // open, so it plays again the next time someone opens (or reopens) the
+    // site, but doesn't repeat every time they navigate back to the home
+    // page within the same visit.
+
+    var WELCOME_STORAGE_KEY = "hireup_welcomed";
+
+    function hasBeenWelcomedBefore() {
+        try {
+            return window.sessionStorage.getItem(WELCOME_STORAGE_KEY) === "1";
+        } catch (err) {
+            // Storage blocked (private browsing, locked-down browser, etc.)
+            // — treat as "not seen before" so the greeting can still play,
+            // it just won't be remembered next time.
+            return false;
+        }
+    }
+
+    function rememberWelcomed() {
+        try {
+            window.sessionStorage.setItem(WELCOME_STORAGE_KEY, "1");
+        } catch (err) {
+            // Nothing to do — worst case the greeting plays again later.
+        }
+    }
+
+    function announceWelcome() {
+        var body = document.body;
+        var text = body.getAttribute("data-welcome-text");
+        if (!text || hasBeenWelcomedBefore()) {
+            return;
+        }
+
+        var synth = window.speechSynthesis;
+        if (!synth || typeof window.SpeechSynthesisUtterance !== "function") {
+            return;
+        }
+
+        var LANG_CODES = {
+            en: "en-IN", hi: "hi-IN", bn: "bn-IN", mr: "mr-IN", te: "te-IN",
+            gu: "gu-IN", ta: "ta-IN", kn: "kn-IN", ml: "ml-IN", pa: "pa-IN"
+        };
+        var langCode = LANG_CODES[body.getAttribute("data-welcome-lang")] || "en-IN";
+
+        var spoken = false;
+        function speakOnce() {
+            if (spoken || synth.speaking) {
+                return;
+            }
+            spoken = true;
+            rememberWelcomed(); // mark as seen the moment we commit to speaking
+            var utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = langCode;
+            synth.speak(utterance);
+        }
+
+        // Most browsers allow speech synthesis without a prior click, but a
+        // few (notably mobile Safari) silently block it until the user has
+        // interacted with the page — so try right away, and fall back to
+        // the first tap/click/keypress if that attempt produced nothing.
+        speakOnce();
+        ["pointerdown", "keydown"].forEach(function (type) {
+            document.addEventListener(type, speakOnce, { once: true });
         });
     }
 })();

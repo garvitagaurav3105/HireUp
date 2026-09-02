@@ -2,19 +2,19 @@
 
 /* Colour + spacing variables kept in one place so they are easy to tweak */
 :root {
-    --bg: #fdf6f6;
+    --bg: #f6f4fb;
     --surface: #ffffff;
-    --text: #2b1416;
-    --muted: #7a5a5c;
-    --border: #f0dcdd;
-    --brand: #7a1f2b;
-    --brand-dark: #5c1620;
-    --accent: #e0546b;
-    --accent-soft: #fbe4e9;
+    --text: #17111f;
+    --muted: #6b6178;
+    --border: #e5ddf5;
+    --brand: #4c1d95;
+    --brand-dark: #1e0a35;
+    --accent: #a78bfa;
+    --accent-soft: #efe6fb;
     --radius: 12px;
     /* Layered shadows read as depth rather than a single flat blur */
-    --shadow: 0 1px 2px rgba(122, 31, 43, 0.06), 0 10px 30px rgba(122, 31, 43, 0.1);
-    --shadow-raised: 0 2px 4px rgba(122, 31, 43, 0.08), 0 22px 44px rgba(122, 31, 43, 0.18);
+    --shadow: 0 1px 2px rgba(76, 29, 149, 0.06), 0 10px 30px rgba(76, 29, 149, 0.1);
+    --shadow-raised: 0 2px 4px rgba(76, 29, 149, 0.08), 0 22px 44px rgba(76, 29, 149, 0.18);
     --transition: 180ms ease;
     --transition-3d: 320ms cubic-bezier(0.22, 1, 0.36, 1);
     --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -152,55 +152,6 @@ input {
     }
 }
 
-/* Smooth out interactive elements site-wide */
-a,
-button,
-select,
-input {
-    transition: background-color var(--transition), border-color var(--transition),
-        color var(--transition), box-shadow var(--transition), transform var(--transition);
-}
-
-/* Cards get a slower, springier transition so the 3D tilt feels tactile */
-.job-card,
-.search-card,
-.job-panel {
-    transform-style: preserve-3d;
-    will-change: transform;
-    transition: transform var(--transition-3d), box-shadow var(--transition-3d),
-        border-color var(--transition);
-}
-
-/* Perspective belongs on the *parent* of a tilting element so the tilt
-   reads as depth rather than a flat skew */
-.hero,
-.job-list,
-.job-detail {
-    perspective: 1000px;
-}
-
-/* Entrance animation used across hero text, cards, and the job panel —
-   combines a rise, fade, and a slight 3D unfold for depth */
-@keyframes rise-in {
-    from {
-        opacity: 0;
-        transform: translateY(18px) translateZ(-40px) rotateX(6deg);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) translateZ(0) rotateX(0deg);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    * {
-        animation-duration: 0.001ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.001ms !important;
-        scroll-behavior: auto !important;
-    }
-}
-
 /* Centres content and keeps a comfortable reading width */
 .container {
     width: 100%;
@@ -219,7 +170,7 @@ input {
     position: sticky;
     top: 0;
     z-index: 100;
-    box-shadow: 0 2px 12px rgba(122, 31, 43, 0.06);
+    box-shadow: 0 2px 12px rgba(76, 29, 149, 0.06);
 }
 
 .header-inner {
@@ -250,13 +201,46 @@ input {
 .logo-mark svg {
     display: block;
     border-radius: 13px;
-    filter: drop-shadow(0 6px 14px rgba(122, 31, 43, 0.35));
+    filter: drop-shadow(0 6px 14px rgba(76, 29, 149, 0.35));
     transition: transform var(--transition-3d);
     transform-style: preserve-3d;
 }
 
 .brand:hover .logo-mark svg {
     transform: rotateY(18deg) rotateX(-8deg) scale(1.06);
+}
+
+/* Prominent, always-visible entry point to the feedback feature — sits in
+   the sticky header so it's reachable from every page without scrolling */
+.btn-feedback-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--accent), var(--brand) 70%);
+    border-radius: 999px;
+    text-decoration: none;
+    box-shadow: 0 4px 12px rgba(76, 29, 149, 0.25);
+    animation: feedback-pulse 3.4s ease-in-out infinite;
+}
+
+.btn-feedback-nav span {
+    color: #ffd76a;
+}
+
+.btn-feedback-nav:hover {
+    background: linear-gradient(135deg, var(--accent), var(--brand-dark) 70%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(76, 29, 149, 0.32);
+    animation-play-state: paused;
+}
+
+@keyframes feedback-pulse {
+    0%, 100% { box-shadow: 0 4px 12px rgba(76, 29, 149, 0.25); }
+    50%      { box-shadow: 0 4px 12px rgba(76, 29, 149, 0.25), 0 0 0 6px var(--accent-soft); }
 }
 
 /* Language selector */
@@ -456,17 +440,25 @@ input:focus-visible {
 }
 
 .form-field select,
-.form-field input {
+.form-field input,
+.form-field textarea {
     padding: 12px;
     font-size: 1rem;
+    font-family: inherit;
     border: 1px solid var(--border);
     border-radius: 8px;
     background: #fbfcfe;
     color: var(--text);
 }
 
+.form-field textarea {
+    resize: vertical;
+    min-height: 90px;
+}
+
 .form-field select:focus,
-.form-field input:focus {
+.form-field input:focus,
+.form-field textarea:focus {
     outline: none;
     border-color: var(--brand);
     background: #ffffff;
@@ -511,8 +503,8 @@ input:focus-visible {
 }
 
 @keyframes mic-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(122, 31, 43, 0.35); }
-    50%      { box-shadow: 0 0 0 6px rgba(122, 31, 43, 0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(76, 29, 149, 0.35); }
+    50%      { box-shadow: 0 0 0 6px rgba(76, 29, 149, 0); }
 }
 
 /* ===== Actions row: search button + voice status ===== */
@@ -536,7 +528,7 @@ input:focus-visible {
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    box-shadow: 0 6px 16px rgba(122, 31, 43, 0.22);
+    box-shadow: 0 6px 16px rgba(76, 29, 149, 0.22);
 }
 
 /* Diagonal shine sweep on hover */
@@ -559,12 +551,12 @@ input:focus-visible {
 .btn-search:hover {
     background: linear-gradient(135deg, var(--accent), var(--brand-dark) 70%);
     transform: translateY(-2px);
-    box-shadow: 0 10px 22px rgba(122, 31, 43, 0.28);
+    box-shadow: 0 10px 22px rgba(76, 29, 149, 0.28);
 }
 
 .btn-search:active {
     transform: translateY(0) scale(0.98);
-    box-shadow: 0 4px 10px rgba(122, 31, 43, 0.22);
+    box-shadow: 0 4px 10px rgba(76, 29, 149, 0.22);
     transition-duration: 80ms;
 }
 
@@ -703,7 +695,7 @@ input:focus-visible {
     border-radius: 10px;
     background: linear-gradient(135deg, var(--accent), var(--brand));
     color: #ffffff;
-    box-shadow: 0 4px 10px rgba(122, 31, 43, 0.28);
+    box-shadow: 0 4px 10px rgba(76, 29, 149, 0.28);
 }
 
 .job-icon-lg {
@@ -711,17 +703,6 @@ input:focus-visible {
     height: 46px;
     margin-top: 0;
     border-radius: 13px;
-}
-
-.job-card:hover {
-    border-color: var(--accent);
-    box-shadow: var(--shadow-raised);
-    transform: translateY(-4px) translateZ(20px) rotateX(2deg);
-}
-
-.job-card:active {
-    transform: translateY(-1px) translateZ(6px);
-    transition-duration: 80ms;
 }
 
 .job-title {
@@ -791,7 +772,7 @@ input:focus-visible {
     background: linear-gradient(135deg, var(--accent), var(--brand) 70%);
     border-radius: 8px;
     text-decoration: none;
-    box-shadow: 0 4px 12px rgba(122, 31, 43, 0.2);
+    box-shadow: 0 4px 12px rgba(76, 29, 149, 0.2);
 }
 
 .btn-view::after {
@@ -813,7 +794,7 @@ input:focus-visible {
 .btn-view:hover {
     background: linear-gradient(135deg, var(--accent), var(--brand-dark) 70%);
     transform: translateY(-2px);
-    box-shadow: 0 8px 18px rgba(122, 31, 43, 0.3);
+    box-shadow: 0 8px 18px rgba(76, 29, 149, 0.3);
 }
 
 .btn-view:active {
@@ -894,6 +875,163 @@ input:focus-visible {
     color: var(--text);
 }
 
+.job-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+/* Secondary "Rate this company" button — outlined so it doesn't compete
+   with the primary "View original listing" action */
+.btn-rate {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 18px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--brand);
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-decoration: none;
+}
+
+.btn-rate:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+
+/* ===== Feedback page ===== */
+.feedback-panel .job-detail-meta {
+    margin-bottom: 24px;
+}
+
+.feedback-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin-bottom: 8px;
+}
+
+.feedback-company-locked {
+    margin: -8px 0 0;
+    font-size: 0.95rem;
+    color: var(--muted);
+}
+
+.feedback-thanks {
+    padding: 16px 20px;
+    text-align: left;
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.feedback-thanks p {
+    margin: 0;
+    color: var(--brand-dark);
+    font-weight: 600;
+}
+
+.feedback-error {
+    padding: 16px 20px;
+    text-align: left;
+}
+
+/* Pure-CSS 5-star input: radios in reverse DOM order + row-reverse layout
+   makes ":hover ~ label" and ":checked ~ label" light up every star up to
+   the one under the cursor / chosen */
+.star-rating {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    gap: 4px;
+    justify-content: flex-end;
+}
+
+.star-rating input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+}
+
+.star-rating label {
+    font-size: 2.1rem;
+    line-height: 1;
+    color: var(--border);
+    cursor: pointer;
+    transition: color 150ms ease, transform 150ms ease;
+}
+
+.star-rating label:hover,
+.star-rating label:hover ~ label,
+.star-rating input:checked ~ label {
+    color: var(--accent);
+}
+
+.star-rating input:focus-visible + label {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.star-rating label:active {
+    transform: scale(1.15);
+}
+
+.feedback-reviews {
+    margin-top: 8px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+.feedback-average {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 16px;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+.feedback-average-stars,
+.review-stars {
+    color: var(--border);
+    letter-spacing: 2px;
+}
+
+.feedback-average-stars .filled,
+.review-stars .filled {
+    color: var(--accent);
+}
+
+.feedback-empty {
+    color: var(--muted);
+}
+
+.review-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.review-card {
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+}
+
+.review-text {
+    margin: 6px 0 0;
+    font-size: 0.94rem;
+    color: var(--text);
+}
+
 /* Pagination */
 .pagination {
     display: flex;
@@ -949,6 +1087,46 @@ input:focus-visible {
     background: var(--accent-soft);
 }
 
+/* Results page only: every text size bumped up by 1pt over its normal
+   value (scoped through the .results ancestor so the shared classes below
+   — .tag, .btn-view, .message p, etc. — stay their usual size everywhere
+   else, e.g. the job detail page). */
+.results .back-link,
+.results .btn-read,
+.results .job-meta,
+.results .btn-view,
+.results .page-link,
+.results .page-status {
+    font-size: calc(0.9rem + 1pt);
+}
+
+/* These two have no explicit font-size elsewhere (they inherit the
+   default 1rem body text), so their "+1pt" starts from 1rem instead */
+.results .results-count,
+.results .message p {
+    font-size: calc(1rem + 1pt);
+}
+
+.results .results-title {
+    font-size: calc(1.7rem + 1pt);
+}
+
+.results .job-title {
+    font-size: calc(1.15rem + 1pt);
+}
+
+.results .tag {
+    font-size: calc(0.78rem + 1pt);
+}
+
+.results .job-salary {
+    font-size: calc(0.92rem + 1pt);
+}
+
+.results .job-desc {
+    font-size: calc(0.95rem + 1pt);
+}
+
 /* ===== Footer ===== */
 .site-footer {
     position: relative;
@@ -992,6 +1170,16 @@ input:focus-visible {
     color: var(--muted);
 }
 
+.footer-link {
+    color: var(--brand);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.footer-link:hover {
+    text-decoration: underline;
+}
+
 /* ===== Mobile ===== */
 @media (max-width: 600px) {
     .tagline {
@@ -1015,5 +1203,20 @@ input:focus-visible {
     .results-bar {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    /* Header: brand on its own row, feedback + language controls sharing
+       the row below so nothing feels cramped on narrow screens */
+    .header-inner {
+        justify-content: flex-start;
+    }
+
+    .btn-feedback-nav {
+        order: 1;
+    }
+
+    .lang-form {
+        order: 2;
+        margin-left: auto;
     }
 }

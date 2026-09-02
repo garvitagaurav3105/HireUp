@@ -5,9 +5,12 @@
                 <rect x="2" y="2" width="44" height="44" rx="13" fill="url(#logoGrad)"/>
                 <path d="M17 22v-2.5a5 5 0 0110 0V22" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
                 <rect x="12" y="22" width="24" height="15" rx="3.5" fill="#fff"/>
-                <rect x="20.5" y="27.5" width="7" height="4" rx="1.4" fill="#7a1f2b"/>
+                <rect x="20.5" y="27.5" width="7" height="4" rx="1.4" fill="#4c1d95"/>
             </svg>
         </span>
-        <p>HireUp &middot; {{ t('footer_text') }}</p>
+        <p>
+            HireUp &middot; {{ t('footer_text') }}
+            &middot; <a href="{{ url_for('feedback') }}" class="footer-link">{{ t('feedback_footer_link') }}</a>
+        </p>
     </div>
 </footer>

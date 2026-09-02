@@ -11,9 +11,9 @@
                 <svg viewBox="0 0 48 48" width="34" height="34" role="img">
                     <defs>
                         <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#e0546b"/>
-                            <stop offset="55%" stop-color="#a3283a"/>
-                            <stop offset="100%" stop-color="#5c1620"/>
+                            <stop offset="0%" stop-color="#c4a6f7"/>
+                            <stop offset="55%" stop-color="#7c3aed"/>
+                            <stop offset="100%" stop-color="#1e0a35"/>
                         </linearGradient>
                     </defs>
                     <rect x="2" y="2" width="44" height="44" rx="13" fill="url(#logoGrad)"/>
@@ -24,6 +24,10 @@
                 </svg>
             </span>
             <span class="brand-word">Hire<span>Up</span></span>
+        </a>
+
+        <a href="{{ url_for('feedback') }}" class="btn-feedback-nav">
+            <span aria-hidden="true">★</span> {{ t('tab_feedback') }}
         </a>
 
         <form class="lang-form" action="{{ url_for('set_language') }}" method="get">

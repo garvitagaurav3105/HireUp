@@ -8,14 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ asset_version }}">
 </head>
 <body>
     {% include "_header.html" %}
 
     <main class="container job-detail">
         {% if profession and location %}
-            <a href="{{ url_for('search', profession=profession, location=location, page=page or 1) }}"
+            <a href="{{ url_for('search', profession=profession, location=location, page=page or 1, min_salary=min_salary, job_type=job_type) }}"
                class="back-link">&larr; {{ t('detail_back') }}</a>
         {% else %}
             <a href="{{ url_for('index') }}" class="back-link">&larr; {{ t('detail_back_home') }}</a>
@@ -67,10 +67,17 @@
                     <p class="job-detail-desc">{{ job.description }}</p>
                 {% endif %}
 
-                {% if job.url %}
-                    <a href="{{ job.url }}" target="_blank" rel="noopener noreferrer"
-                       class="btn-view">{{ t('detail_view_original') }}</a>
-                {% endif %}
+                <div class="job-detail-actions">
+                    {% if job.url %}
+                        <a href="{{ job.url }}" target="_blank" rel="noopener noreferrer"
+                           class="btn-view">{{ t('detail_view_original') }}</a>
+                    {% endif %}
+                    {% if job.company %}
+                        <a href="{{ url_for('feedback', company=job.company) }}" class="btn-rate">
+                            <span aria-hidden="true">★</span> {{ t('feedback_job_link') }}
+                        </a>
+                    {% endif %}
+                </div>
             </article>
 
         {% else %}
@@ -83,6 +90,6 @@
 
     {% include "_footer.html" %}
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='script.js') }}?v={{ asset_version }}"></script>
 </body>
 </html>

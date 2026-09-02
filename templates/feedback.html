@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HireUp — {{ t('tab_feedback') }}</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ asset_version }}">
+</head>
+<body>
+    {% include "_header.html" %}
+
+    <main class="container job-detail">
+        <a href="{{ url_for('index') }}" class="back-link">&larr; {{ t('detail_back_home') }}</a>
+
+        <article class="job-panel feedback-panel">
+            <h1 class="job-detail-title">
+                {% if locked and company %}
+                    {{ t('feedback_rate_prefix') }} {{ company }}
+                {% else %}
+                    {{ t('feedback_heading') }}
+                {% endif %}
+            </h1>
+            <p class="job-detail-meta">{{ t('feedback_intro') }}</p>
+
+            {% if submitted %}
+                <div class="message feedback-thanks">
+                    <p>{{ t('feedback_thanks') }}</p>
+                </div>
+            {% endif %}
+
+            {% if error %}
+                <div class="message message-error feedback-error">
+                    <p>{{ error }}</p>
+                </div>
+            {% endif %}
+
+            <form class="feedback-form" method="post"
+                  action="{{ url_for('feedback', company=company if locked else None) }}">
+                {% if locked %}
+                    <input type="hidden" name="company" value="{{ company }}">
+                    <p class="feedback-company-locked">{{ t('feedback_company_label') }}: <strong>{{ company }}</strong></p>
+                {% else %}
+                    <div class="form-field">
+                        <label for="company">{{ t('feedback_company_label') }}</label>
+                        <input type="text" id="company" name="company" required
+                               placeholder="{{ t('feedback_company_ph') }}" value="{{ company }}">
+                    </div>
+                {% endif %}
+
+                <div class="form-field">
+                    <label id="rating-label">{{ t('feedback_rating_label') }}</label>
+                    <div class="star-rating" role="radiogroup" aria-labelledby="rating-label">
+                        {% for value in [5, 4, 3, 2, 1] %}
+                            <input type="radio" id="star{{ value }}" name="rating" value="{{ value }}"
+                                   {{ 'checked' if posted_rating == value }}>
+                            <label for="star{{ value }}" aria-label="{{ value }}">★</label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label for="text">{{ t('feedback_text_label') }}</label>
+                    <textarea id="text" name="text" rows="4"
+                              placeholder="{{ t('feedback_text_ph') }}">{{ posted_text }}</textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-search">{{ t('feedback_submit') }}</button>
+                </div>
+            </form>
+
+            {% if company %}
+                <div class="feedback-reviews">
+                    <h2 class="job-section-heading">{{ t('feedback_recent_heading') }}</h2>
+
+                    {% if review_count %}
+                        <p class="feedback-average">
+                            <span class="feedback-average-stars" aria-hidden="true">
+                                {% for n in range(1, 6) %}<span class="{{ 'filled' if n <= (average | round(0, 'floor')) else '' }}">★</span>{% endfor %}
+                            </span>
+                            {{ average }} / 5 &middot; {{ review_count }} {{ t('reviews_word') }}
+                        </p>
+
+                        <ul class="review-list">
+                            {% for review in recent %}
+                                <li class="review-card">
+                                    <span class="review-stars" aria-hidden="true">
+                                        {% for n in range(1, 6) %}<span class="{{ 'filled' if n <= review.rating else '' }}">★</span>{% endfor %}
+                                    </span>
+                                    {% if review.text %}
+                                        <p class="review-text">{{ review.text }}</p>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="feedback-empty">{{ t('feedback_no_reviews') }}</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </article>
+    </main>
+
+    {% include "_footer.html" %}
+
+    <script src="{{ url_for('static', filename='script.js') }}?v={{ asset_version }}"></script>
+</body>
+</html>
