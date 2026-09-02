@@ -319,6 +319,11 @@ def search():
         # Tag for dashboard breakdown by profession and city
         sentry_sdk.set_tag("profession", profession)
         sentry_sdk.set_tag("city", location)
+        # Add span attributes for detailed search metrics
+        sentry_sdk.set_tag("search.profession", profession)
+        sentry_sdk.set_tag("search.city", location)
+        sentry_sdk.set_tag("search.success", True)
+        sentry_sdk.set_tag("search.result_count", len(result["jobs"]))
     except AdzunaError as exc:
         return render_template("results.html", error=str(exc),
                                profession=profession, location=location,
@@ -367,6 +372,11 @@ def job_details(job_id):
         # Tag for dashboard breakdown by profession and city
         sentry_sdk.set_tag("profession", profession)
         sentry_sdk.set_tag("city", location)
+        # Add span attributes for detailed search metrics
+        sentry_sdk.set_tag("search.profession", profession)
+        sentry_sdk.set_tag("search.city", location)
+        sentry_sdk.set_tag("search.success", True)
+        sentry_sdk.set_tag("search.result_count", len(result["jobs"]))
     except AdzunaError as exc:
         return render_template("job.html", error=str(exc),
                                profession=profession, location=location, page=page,
