@@ -316,6 +316,9 @@ def search():
     try:
         result = search_adzuna_jobs(profession, location, page=page,
                                     min_salary=min_salary, job_type=job_type)
+        # Tag for dashboard breakdown by profession and city
+        sentry_sdk.set_tag("profession", profession)
+        sentry_sdk.set_tag("city", location)
     except AdzunaError as exc:
         return render_template("results.html", error=str(exc),
                                profession=profession, location=location,
@@ -361,6 +364,9 @@ def job_details(job_id):
     try:
         result = search_adzuna_jobs(profession, location, page=page,
                                     min_salary=min_salary, job_type=job_type)
+        # Tag for dashboard breakdown by profession and city
+        sentry_sdk.set_tag("profession", profession)
+        sentry_sdk.set_tag("city", location)
     except AdzunaError as exc:
         return render_template("job.html", error=str(exc),
                                profession=profession, location=location, page=page,
