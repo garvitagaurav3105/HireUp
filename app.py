@@ -67,11 +67,6 @@ sentry_sdk.init(
 )
 
 app = Flask(__name__)
-
-@app.route("/test-sentry")
-def test_sentry():
-    sentry_sdk.capture_message("Test message from HireUp")
-    return "Check Sentry Issues!"
     
 # ----- Interface language -----
 
