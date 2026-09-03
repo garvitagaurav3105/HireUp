@@ -1,10 +1,12 @@
 import json
 import os
+import time
 from datetime import datetime, timezone
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
 import sentry_sdk
+from sentry_sdk import start_transaction, set_tag, set_measurement, capture_exception
 from dotenv import load_dotenv
 from flask import Flask, make_response, redirect, render_template, request, url_for
 
@@ -25,12 +27,6 @@ MAX_PAGES = 20  # keep pagination simple and bounded
 FEEDBACK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "feedback_data.json")
 MAX_FEEDBACK_SHOWN = 6  # most recent reviews shown per company
 
-# Each profession maps to an Adzuna "category" tag (Adzuna's own job
-# taxonomy) and/or a curated set of keywords. Filtering by category keeps
-# one profession's results from bleeding into another far more reliably
-# than free-text keyword search alone — two professions that share a
-# category (e.g. Data Science sits inside IT) also get a keyword filter
-# scoped to just the job title, to keep them apart from each other too.
 PROFESSIONS = [
     ("Software / IT", "it-jobs", None),
     ("Engineering", "engineering-jobs", None),
@@ -60,31 +56,20 @@ PROFESSIONS = [
 PROFESSION_LABELS = [label for label, _category, _what in PROFESSIONS]
 PROFESSION_LOOKUP = {label: (category, what) for label, category, what in PROFESSIONS}
 
-# Kind-of-job filter shown on the search form. Adzuna has native boolean
-# flags for full-time/part-time; it has no "internship" flag at all, so
-# that one is approximated with a title-restricted keyword match instead.
 JOB_TYPES = ["full_time", "part_time", "internship"]
 
-# Bump this whenever static/style.css or static/script.js changes. It's
-# appended to those files' URLs as a cache-busting query string so a
-# browser that already cached the old file (very common with Render/CDN
-# hosting) picks up the new one on next load instead of silently keeping
-# stale JS/CSS around.
 ASSET_VERSION = "5"
 
 sentry_sdk.init(
     dsn="https://63d29ce67291fe3cc18796f135d0b8b0@o4512005380636672.ingest.us.sentry.io/4512005387976704",
-    # Add data like request headers and IP for users,
-    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
     send_default_pii=True,
-    # Enable performance monitoring to track request latency, time-to-task, and error rates
     traces_sample_rate=1.0,
 )
 
 app = Flask(__name__)
 
 
-# ----- Interface language (job data from Adzuna is never translated) -----
+# ----- Interface language -----
 
 def get_language():
     """Chosen language: ?lang= wins, then the saved cookie, then the default."""
@@ -113,7 +98,7 @@ def set_language():
     """Remember the chosen language in a cookie and return to the last page."""
     lang = request.args.get("lang", DEFAULT_LANGUAGE)
     next_url = request.args.get("next", "") or url_for("index")
-    if not next_url.startswith("/"):  # only allow internal paths
+    if not next_url.startswith("/"):
         next_url = url_for("index")
 
     response = make_response(redirect(next_url))
@@ -220,29 +205,15 @@ def search_adzuna_jobs(profession, location, page=1, min_salary=None, job_type=N
     if category:
         params["category"] = category
     if what_terms:
-        # An exact-phrase, title-only match keeps a profession like
-        # "Data Science" from matching every IT posting that merely
-        # mentions data somewhere in the body text.
-        params["what_phrase"] = what_terms
-        params["title_only"] = 1
-    elif not category:
-        # No curated mapping for this profession — fall back to searching
-        # its own label, but require the words to appear in the title.
-        params["what_and"] = profession
-        params["title_only"] = 1
-
-    if min_salary:
+        params["what"] = what_terms
+    if min_salary is not None:
         params["salary_min"] = min_salary
-
     if job_type == "full_time":
         params["full_time"] = 1
     elif job_type == "part_time":
         params["part_time"] = 1
     elif job_type == "internship":
-        # No native Adzuna flag for this — approximate with a
-        # title-restricted keyword match instead.
-        params["what_or"] = "internship intern"
-        params["title_only"] = 1
+        params["what"] = "internship"
 
     try:
         response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT)
@@ -289,6 +260,8 @@ def _parse_job_type(raw):
 
 @app.route("/")
 def index():
+    # Track landing page view
+    set_tag("interaction", "landing_page")
     return render_template("index.html", professions=PROFESSION_LABELS, job_types=JOB_TYPES)
 
 
@@ -304,30 +277,40 @@ def search():
     except ValueError:
         page = 1
 
-    if not profession:
-        return render_template("results.html", error=translate("err_no_profession"),
-                               profession=profession, location=location,
-                               min_salary=min_salary, job_type=job_type), 400
-    if not location:
-        return render_template("results.html", error=translate("err_no_location"),
-                               profession=profession, location=location,
-                               min_salary=min_salary, job_type=job_type), 400
+    # Create transaction for time-to-task measurement
+    with start_transaction(op="search", name="job_search", sampled=True) as txn:
+        txn.set_tag("profession", profession)
+        txn.set_tag("location", location)
+        txn.set_tag("page", page)
 
-    try:
-        result = search_adzuna_jobs(profession, location, page=page,
-                                    min_salary=min_salary, job_type=job_type)
-        # Tag for dashboard breakdown by profession and city
-        sentry_sdk.set_tag("profession", profession)
-        sentry_sdk.set_tag("city", location)
-        # Add span attributes for detailed search metrics
-        sentry_sdk.set_tag("search.profession", profession)
-        sentry_sdk.set_tag("search.city", location)
-        sentry_sdk.set_tag("search.success", True)
-        sentry_sdk.set_tag("search.result_count", len(result["jobs"]))
-    except AdzunaError as exc:
-        return render_template("results.html", error=str(exc),
-                               profession=profession, location=location,
-                               min_salary=min_salary, job_type=job_type), 502
+        if not profession:
+            set_tag("search_error", "missing_profession")
+            set_measurement("search_success", 0, "boolean")
+            return render_template("results.html", error=translate("err_no_profession"),
+                                   profession=profession, location=location,
+                                   min_salary=min_salary, job_type=job_type), 400
+        if not location:
+            set_tag("search_error", "missing_location")
+            set_measurement("search_success", 0, "boolean")
+            return render_template("results.html", error=translate("err_no_location"),
+                                   profession=profession, location=location,
+                                   min_salary=min_salary, job_type=job_type), 400
+
+        try:
+            result = search_adzuna_jobs(profession, location, page=page,
+                                        min_salary=min_salary, job_type=job_type)
+        except AdzunaError as exc:
+            set_tag("search_error", "api_error")
+            set_measurement("search_success", 0, "boolean")
+            capture_exception(exc)
+            return render_template("results.html", error=str(exc),
+                                   profession=profession, location=location,
+                                   min_salary=min_salary, job_type=job_type), 502
+
+        # SUCCESS METRICS
+        set_measurement("search_success", 1, "boolean")
+        set_measurement("results_count", result["count"], "integer")
+        txn.set_tag("results_found", "yes" if result["count"] > 0 else "no")
 
     return render_template(
         "results.html",
@@ -350,6 +333,10 @@ def job_details(job_id):
     search (carried in the query string) and pick out the matching job.
     No database needed.
     """
+    # Track job detail click
+    set_tag("interaction", "job_details_click")
+    set_tag("job_id", job_id)
+
     profession = (request.args.get("profession") or "").strip()
     location = (request.args.get("location") or "").strip()
     min_salary = _parse_min_salary(request.args.get("min_salary"))
@@ -369,15 +356,8 @@ def job_details(job_id):
     try:
         result = search_adzuna_jobs(profession, location, page=page,
                                     min_salary=min_salary, job_type=job_type)
-        # Tag for dashboard breakdown by profession and city
-        sentry_sdk.set_tag("profession", profession)
-        sentry_sdk.set_tag("city", location)
-        # Add span attributes for detailed search metrics
-        sentry_sdk.set_tag("search.profession", profession)
-        sentry_sdk.set_tag("search.city", location)
-        sentry_sdk.set_tag("search.success", True)
-        sentry_sdk.set_tag("search.result_count", len(result["jobs"]))
     except AdzunaError as exc:
+        capture_exception(exc)
         return render_template("job.html", error=str(exc),
                                profession=profession, location=location, page=page,
                                min_salary=min_salary, job_type=job_type), 502
@@ -385,6 +365,7 @@ def job_details(job_id):
     job = next((j for j in result["jobs"] if j["id"] and j["id"] == job_id), None)
 
     if job is None:
+        set_tag("job_not_found", "yes")
         return render_template(
             "job.html",
             error="Sorry, we couldn't find that opportunity. It may have expired.",
@@ -455,6 +436,12 @@ def feedback():
                 "submitted_at": datetime.now(timezone.utc).isoformat(),
             })
             _save_feedback(entries)
+            
+            # Track feedback submission to Sentry
+            set_tag("interaction", "feedback_submitted")
+            set_tag("company", company)
+            set_measurement("feedback_rating", posted_rating, "integer")
+            
             submitted = True
             posted_rating = 0
             posted_text = ""
