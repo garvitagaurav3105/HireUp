@@ -6,7 +6,6 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
 import sentry_sdk
-from sentry_sdk import start_transaction, set_tag, set_measurement, capture_exception
 from dotenv import load_dotenv
 from flask import Flask, make_response, redirect, render_template, request, url_for
 
@@ -17,15 +16,15 @@ load_dotenv()
 ADZUNA_APP_ID = os.getenv("ADZUNA_APP_ID")
 ADZUNA_APP_KEY = os.getenv("ADZUNA_APP_KEY")
 
-ADZUNA_COUNTRY = "in"  # India
+ADZUNA_COUNTRY = "in"
 ADZUNA_URL = "https://api.adzuna.com/v1/api/jobs/{country}/search/{page}"
-REQUEST_TIMEOUT = 10  # seconds
+REQUEST_TIMEOUT = 10
 
 RESULTS_PER_PAGE = 10
-MAX_PAGES = 20  # keep pagination simple and bounded
+MAX_PAGES = 20
 
 FEEDBACK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "feedback_data.json")
-MAX_FEEDBACK_SHOWN = 6  # most recent reviews shown per company
+MAX_FEEDBACK_SHOWN = 6
 
 PROFESSIONS = [
     ("Software / IT", "it-jobs", None),
@@ -60,6 +59,7 @@ JOB_TYPES = ["full_time", "part_time", "internship"]
 
 ASSET_VERSION = "5"
 
+# Initialize Sentry
 sentry_sdk.init(
     dsn="https://63d29ce67291fe3cc18796f135d0b8b0@o4512005380636672.ingest.us.sentry.io/4512005387976704",
     send_default_pii=True,
@@ -67,17 +67,16 @@ sentry_sdk.init(
 )
 
 app = Flask(__name__)
-    
+
+
 # ----- Interface language -----
 
 def get_language():
-    """Chosen language: ?lang= wins, then the saved cookie, then the default."""
     lang = request.args.get("lang") or request.cookies.get("lang")
     return lang if lang in LANGUAGES else DEFAULT_LANGUAGE
 
 
 def translate(key):
-    """Look up an interface string for the current language."""
     strings = TRANSLATIONS.get(get_language(), TRANSLATIONS[DEFAULT_LANGUAGE])
     return strings.get(key) or TRANSLATIONS[DEFAULT_LANGUAGE].get(key, key)
 
@@ -94,7 +93,6 @@ def inject_i18n():
 
 @app.route("/set-language")
 def set_language():
-    """Remember the chosen language in a cookie and return to the last page."""
     lang = request.args.get("lang", DEFAULT_LANGUAGE)
     next_url = request.args.get("next", "") or url_for("index")
     if not next_url.startswith("/"):
@@ -107,11 +105,10 @@ def set_language():
 
 
 class AdzunaError(Exception):
-    """Raised when the Adzuna API call cannot be completed successfully."""
+    pass
 
 
 def _clean(value):
-    """Return a trimmed string, or None if there is nothing meaningful to show."""
     if value is None:
         return None
     text = str(value).strip()
@@ -119,7 +116,6 @@ def _clean(value):
 
 
 def _prettify(value):
-    """Turn Adzuna codes like 'full_time' into 'Full time'."""
     text = _clean(value)
     if not text:
         return None
@@ -127,11 +123,6 @@ def _prettify(value):
 
 
 def _safe_url(raw):
-    """Return the job link with any credential-bearing query param removed.
-
-    Adzuna's redirect_url includes the public App ID as `utm_source`, so we
-    drop any parameter whose name or value contains one of our credentials.
-    """
     url = _clean(raw)
     if not url:
         return None
@@ -146,7 +137,6 @@ def _safe_url(raw):
 
 
 def _format_salary(job):
-    """Build a readable salary range string, or None if no salary data."""
     low = job.get("salary_min")
     high = job.get("salary_max")
     if not low and not high:
@@ -166,7 +156,6 @@ def _format_salary(job):
 
 
 def _build_job(job):
-    """Map one raw Adzuna job into a safe, display-ready dict."""
     return {
         "id": _clean(job.get("id")),
         "title": _clean(job.get("title")) or "Untitled role",
@@ -182,12 +171,6 @@ def _build_job(job):
 
 
 def search_adzuna_jobs(profession, location, page=1, min_salary=None, job_type=None):
-    """Call the Adzuna jobs API and return clean, display-ready results.
-
-    Returns a dict: {"count", "jobs", "page", "total_pages"}.
-    Raises AdzunaError with a friendly message on any failure.
-    Credentials are read from the environment and never returned to the caller.
-    """
     if not ADZUNA_APP_ID or not ADZUNA_APP_KEY:
         raise AdzunaError("Job search is not configured. Please try again later.")
 
@@ -241,7 +224,6 @@ def search_adzuna_jobs(profession, location, page=1, min_salary=None, job_type=N
 
 
 def _parse_min_salary(raw):
-    """Parse the salary filter into a non-negative int, or None if unusable."""
     if raw is None or str(raw).strip() == "":
         return None
     try:
@@ -252,15 +234,14 @@ def _parse_min_salary(raw):
 
 
 def _parse_job_type(raw):
-    """Return the job-type filter if it's one we recognize, else None."""
     value = (raw or "").strip()
     return value if value in JOB_TYPES else None
 
 
 @app.route("/")
 def index():
-    # Track landing page view
-    set_tag("interaction", "landing_page")
+    with sentry_sdk.start_transaction(op="page_load", name="landing_page"):
+        sentry_sdk.set_tag("page", "index")
     return render_template("index.html", professions=PROFESSION_LABELS, job_types=JOB_TYPES)
 
 
@@ -276,21 +257,24 @@ def search():
     except ValueError:
         page = 1
 
-    # Create transaction for time-to-task measurement
-    with start_transaction(op="search", name="job_search", sampled=True) as txn:
-        txn.set_tag("profession", profession)
-        txn.set_tag("location", location)
-        txn.set_tag("page", page)
+    # Start Sentry transaction for time-to-task
+    print(f"🔍 Starting job_search transaction for {profession} in {location}")
+    with sentry_sdk.start_transaction(op="http.server", name="job_search") as txn:
+        print(f"✅ Transaction started: {txn.name}")
+        sentry_sdk.set_tag("profession", profession)
+        sentry_sdk.set_tag("location", location)
+        sentry_sdk.set_tag("page", page)
 
         if not profession:
-            set_tag("search_error", "missing_profession")
-            set_measurement("search_success", 0, "boolean")
+            sentry_sdk.set_tag("error_type", "missing_profession")
+            sentry_sdk.set_measurement("search_success", 0, "boolean")
             return render_template("results.html", error=translate("err_no_profession"),
                                    profession=profession, location=location,
                                    min_salary=min_salary, job_type=job_type), 400
+
         if not location:
-            set_tag("search_error", "missing_location")
-            set_measurement("search_success", 0, "boolean")
+            sentry_sdk.set_tag("error_type", "missing_location")
+            sentry_sdk.set_measurement("search_success", 0, "boolean")
             return render_template("results.html", error=translate("err_no_location"),
                                    profession=profession, location=location,
                                    min_salary=min_salary, job_type=job_type), 400
@@ -299,17 +283,17 @@ def search():
             result = search_adzuna_jobs(profession, location, page=page,
                                         min_salary=min_salary, job_type=job_type)
         except AdzunaError as exc:
-            set_tag("search_error", "api_error")
-            set_measurement("search_success", 0, "boolean")
-            capture_exception(exc)
+            sentry_sdk.set_tag("error_type", "api_error")
+            sentry_sdk.set_measurement("search_success", 0, "boolean")
+            sentry_sdk.capture_exception(exc)
             return render_template("results.html", error=str(exc),
                                    profession=profession, location=location,
                                    min_salary=min_salary, job_type=job_type), 502
 
-        # SUCCESS METRICS
-        set_measurement("search_success", 1, "boolean")
-        set_measurement("results_count", result["count"], "integer")
-        txn.set_tag("results_found", "yes" if result["count"] > 0 else "no")
+        # SUCCESS - track metrics
+        sentry_sdk.set_measurement("search_success", 1, "boolean")
+        sentry_sdk.set_measurement("results_count", result["count"], "integer")
+        sentry_sdk.set_tag("results_found", "yes" if result["count"] > 0 else "no")
 
     return render_template(
         "results.html",
@@ -326,15 +310,8 @@ def search():
 
 @app.route("/job/<job_id>")
 def job_details(job_id):
-    """Show one opportunity.
-
-    Adzuna's free API has no "fetch by id" endpoint, so we re-run the same
-    search (carried in the query string) and pick out the matching job.
-    No database needed.
-    """
-    # Track job detail click
-    set_tag("interaction", "job_details_click")
-    set_tag("job_id", job_id)
+    sentry_sdk.set_tag("interaction", "job_click")
+    sentry_sdk.set_tag("job_id", job_id)
 
     profession = (request.args.get("profession") or "").strip()
     location = (request.args.get("location") or "").strip()
@@ -356,7 +333,7 @@ def job_details(job_id):
         result = search_adzuna_jobs(profession, location, page=page,
                                     min_salary=min_salary, job_type=job_type)
     except AdzunaError as exc:
-        capture_exception(exc)
+        sentry_sdk.capture_exception(exc)
         return render_template("job.html", error=str(exc),
                                profession=profession, location=location, page=page,
                                min_salary=min_salary, job_type=job_type), 502
@@ -364,7 +341,7 @@ def job_details(job_id):
     job = next((j for j in result["jobs"] if j["id"] and j["id"] == job_id), None)
 
     if job is None:
-        set_tag("job_not_found", "yes")
+        sentry_sdk.set_tag("job_not_found", "yes")
         return render_template(
             "job.html",
             error="Sorry, we couldn't find that opportunity. It may have expired.",
@@ -377,7 +354,7 @@ def job_details(job_id):
                            min_salary=min_salary, job_type=job_type)
 
 
-# ----- Company feedback (simple JSON-file storage, no database needed) ----
+# ----- Company feedback ----
 
 def _load_feedback():
     try:
@@ -400,12 +377,6 @@ def _company_feedback(entries, company):
 
 @app.route("/feedback", methods=["GET", "POST"])
 def feedback():
-    """Star rating + free-text feedback about a company.
-
-    Reached either from a job's "Rate this company" link (company name
-    pre-filled and locked) or directly from the footer (company name is a
-    plain text field in that case).
-    """
     company = (request.args.get("company") or "").strip()
     locked = bool(company)
     submitted = False
@@ -435,12 +406,12 @@ def feedback():
                 "submitted_at": datetime.now(timezone.utc).isoformat(),
             })
             _save_feedback(entries)
-            
-            # Track feedback submission to Sentry
-            set_tag("interaction", "feedback_submitted")
-            set_tag("company", company)
-            set_measurement("feedback_rating", posted_rating, "integer")
-            
+
+            # Track feedback to Sentry
+            sentry_sdk.set_tag("interaction", "feedback_submit")
+            sentry_sdk.set_tag("company", company)
+            sentry_sdk.set_measurement("feedback_rating", posted_rating, "integer")
+
             submitted = True
             posted_rating = 0
             posted_text = ""
